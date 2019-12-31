@@ -1,31 +1,44 @@
-package io_App;
+package k_io;
 
-import java.awt.BorderLayout;
 import java.awt.EventQueue;
-
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.border.EmptyBorder;
-import javax.swing.JLabel;
-import javax.swing.JTextField;
-import javax.swing.JButton;
-import javax.swing.JScrollPane;
-import javax.swing.JList;
-import javax.swing.SwingConstants;
-import javax.swing.JTextPane;
-import javax.swing.JComboBox;
 import java.awt.Font;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.swing.DefaultListModel;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextField;
+import javax.swing.JTextPane;
+import javax.swing.SwingConstants;
+import javax.swing.border.EmptyBorder;
+import javax.swing.text.html.HTMLDocument;
+import javax.swing.text.html.HTMLEditorKit;
+import java.awt.Color;
 
 public class ServerFrame extends JFrame implements Runnable{
 
 	
 	ServerSocket server;
+	HTMLEditorKit kit = new HTMLEditorKit();
+	HTMLDocument doc = new HTMLDocument();
+	// document 는 웹상에서 브라우저 바탕을 일컫는 말 (콘텐츠가 뿌려지는 장소)
+	
+	List<ServerThread> clients = new ArrayList<ServerThread>();
+	DefaultListModel<String> model = new DefaultListModel<>();
+	
 	
 	private JPanel contentPane;
 	private JLabel lblNewLabel;
@@ -61,10 +74,7 @@ public class ServerFrame extends JFrame implements Runnable{
 			}
 		});
 	}
-
-	/**
-	 * Create the frame.
-	 */
+	
 	public ServerFrame() {
 		setTitle("\uCC44\uD305 \uC11C\uBC84");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -94,14 +104,29 @@ public class ServerFrame extends JFrame implements Runnable{
 		try{
 			int p = Integer.parseInt(port.getText());
 			server = new ServerSocket(p);
-			System.out.println("서버가 시작됨.");
+			String html = "<font size='5' color='#4C301D'>서버가 시작됨</font>";
+			kit.insertHTML(doc, doc.getLength(), html, 0, 0, null);
 			
 			while(true) {
-				System.out.println("접속 대기");
+				html = "[클라이언트 접속 대기중]";
+				kit.insertHTML(doc, doc.getLength(), html, 0, 0, null);
+
 				Socket clientSocket = server.accept();
+				ServerThread st = new ServerThread(ServerFrame.this, clientSocket);
+				st.start();
+				clients.add(st); // 접속되어있는 모든 클라이언트를 clients List에 저장
+				
+				
 				InetSocketAddress addr = (InetSocketAddress)clientSocket.getRemoteSocketAddress();
 				
-				System.out.println(addr.getHostName()+"이(가) 접속함.");
+				html = "<div style='border:3px solid #5d4433;padding:5px;width:150px'>"
+						+addr.getAddress().getHostAddress() + "님이 접속함"
+						+"</div>";
+				
+				kit.insertHTML(doc, doc.getLength(), html, 0, 0, null);
+				textPane.scrollRectToVisible(
+						new Rectangle(0, textPane.getHeight()+100, 1, 1) );
+				
 			}
 			
 		}catch(Exception ex) {
@@ -210,7 +235,13 @@ public class ServerFrame extends JFrame implements Runnable{
 	public JTextPane getTextPane() {
 		if (textPane == null) {
 			textPane = new JTextPane();
+			textPane.setBackground(new Color(255, 250, 250));
+			textPane.setFont(new Font("나눔스퀘어라운드 Bold", Font.PLAIN, 12));
 			textPane.setContentType("text/html");
+			
+			textPane.setEditorKit(kit); // 모든 문자는 kit에
+			textPane.setDocument(doc); // 그것에 대한 관리
+			
 		}
 		return textPane;
 	}
@@ -270,8 +301,12 @@ public class ServerFrame extends JFrame implements Runnable{
 	public JList getList_1() {
 		if (list == null) {
 			list = new JList();
+			list.setModel(model);
+			//ServerThread의 command에 login이 들어왔을때, cd.getmID를 가져오면 됨
+			//ServerThread에서 작업
 		}
 		return list;
 	}
+	
 
 	}

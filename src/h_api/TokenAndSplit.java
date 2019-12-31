@@ -102,24 +102,26 @@ public class TokenAndSplit extends JFrame {
 			btnNewButton = new JButton("Token");
 			btnNewButton.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent arg0) {
+
 					String value = str.getText();
 					String d = deli.getText(); // delimeter
 					StringTokenizer st = new StringTokenizer(value, d);
-					//ctrl + shift + o : 자동 import
+					// ctrl + shift + o : 자동 import
 					textArea.setText("");
-					
-					//1 (for문)
+
+					// 1 (for문)
 					int cnt = st.countTokens();
-					for(int i = 0; i<cnt ; i++) {
-						textArea.append(st.nextToken()+"\n");
+					for (int i = 0; i < cnt; i++) {
+						textArea.append(st.nextToken() + "\n");
 					}
-					
-					//2 (while문)
+
+					// 2 (while문)
 					textArea.append("---------------------------\n");
 					st = new StringTokenizer(value, d);
-					while(st.hasMoreTokens()) { // 꺼낼 토큰이 더 남아있으면 루핑
-						textArea.append(st.nextToken()+"\n");
+					while (st.hasMoreTokens()) { // 꺼낼 토큰이 더 남아있으면 루핑
+						textArea.append(st.nextToken() + "\n");
 					}
+
 				}
 			});
 			btnNewButton.setBounds(204, 38, 97, 23);
@@ -134,13 +136,20 @@ public class TokenAndSplit extends JFrame {
 					
 					String[] values = str.getText().split(deli.getText());
 					String r = "Split____________________\n";
+					
 					for(int i = 0; i<values.length; i++) {
-						r += String.format("values[%d]=%s\n", i, values[i]);
+						r += String.format("values[%4d]=%4s\n", i, values[i]);
 					}
 					r+= "-----------------------------\n";
 					r+= Arrays.toString(values)+"\n";
 					r+= "-----------------------------\n";
-					textArea.setText(r);
+					textArea.append(r);
+					textArea.append("-------------향상된 for문 version--------------\n");
+					String[] v = str.getText().split(deli.getText());
+					
+					for(String a : v) {
+						textArea.append(a+"\n");
+					}
 					
 				}
 			});

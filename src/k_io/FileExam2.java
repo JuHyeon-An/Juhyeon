@@ -1,4 +1,4 @@
-package io_App;
+package k_io;
 
 import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
@@ -12,8 +12,6 @@ import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.border.EmptyBorder;
-
-import k_io.FileCopy;
 
 public class FileExam2 extends JFrame {
 

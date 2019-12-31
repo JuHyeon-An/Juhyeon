@@ -29,9 +29,9 @@ public class FileCopyThread extends Thread{
 	public void run() {
 		try {
 			if (original != null && target != null) {
-				FileInputStream fis = new FileInputStream(original);
-				FileOutputStream fos = new FileOutputStream(target);
-				int readByteNo = 0;
+				FileInputStream fis = new FileInputStream(original); // original 파일을 읽어들임
+				FileOutputStream fos = new FileOutputStream(target); // target 파일을 저장
+				int readByteNo = 0; // 읽은 바이트 수
 				long totReadByte = 0;
 				
 				byte[] readBytes = new byte[100];
@@ -41,15 +41,15 @@ public class FileCopyThread extends Thread{
 				
 				bar.setValue(0);
 				while((readByteNo = fis.read(readBytes)) != -1) {
-//					fos.write(읽혀진 데이터 있는 장소, 시작위치, 읽혀진 데이터 시작위치);
+//					fos.write(읽혀진 데이터 있는 장소, 시작위치, 읽은 바이트 수);
 					fos.write(readBytes, 0, readByteNo);
-//					Thread.sleep(50); // 일부로 좀 느리게!
+					System.out.println(readByteNo);
+					Thread.sleep(50); // 일부로 좀 느리게!
 //					progressbar 변화 잘 보기 위해서
 					
 					totReadByte += readByteNo;
 //					tot에 읽은 바이트 수를 계속 누적시킴
 					bar.setValue((int)((double)totReadByte/fileSize*100));
-				
 				}
 				
 				fos.flush(); // 버퍼에 남아있는 데이터 달리고
