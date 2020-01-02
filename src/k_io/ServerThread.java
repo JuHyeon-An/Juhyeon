@@ -9,7 +9,8 @@ import java.util.List;
 
 // client와 1:1로 대화하는 클래스
 public class ServerThread extends Thread{
-
+	
+	String mId;
 	ServerFrame frame;
 	Socket socket;
 	
@@ -22,8 +23,6 @@ public class ServerThread extends Thread{
 		//serverThread에서도 UI 접근해야돼서 frame,
 		//socket은 1:1 통신정보를 받아야해서
 	}
-	
-
 	
 	@Override
 	public void run() {
@@ -40,6 +39,9 @@ public class ServerThread extends Thread{
 				switch(cd.getCommand()) {
 				
 				case ChattData.LOGIN:
+					this.mId = cd.getmId(); // 자신과 연결된 클라이언트의 mId를 저장
+//					(서버는 하나의 클라이언트밖에 연결하지 못 하니까)
+					
 					html = "<font color='#00ff00'>"+cd.getMessage()+ cd.getmId()
 							+ "님이 접속하였습니다" + "</font>";
 //					JList에 로그인 사람 정보를 표시 (ServerFrame 소속 kit를 가져온다)
@@ -63,19 +65,32 @@ public class ServerThread extends Thread{
 					frame.model.addElement(cd.getmId());
 					
 					//3. 모든 접속자에게 현재 자신의아이디를 전송
-					users.clear();
+					cd2 = new ChattData();
+					cd2.setCommand(ChattData.LOGIN);
+					users = new ArrayList<String>();
+					
 					users.add(cd.getmId()); // 현재 자신의 아이디만 집어넣고
 					cd2.setUsers(users);
 					sendAll(cd2);
+					System.out.println(users.toString());
 					
 					break;
 					
-				case ChattData.LOGOUT:
 					
-					break;
+				case ChattData.WHISPER:
+					int[] to = new int[cd.getUsers().size()];
+					int index = 0;
+					for (String str : cd.getUsers()) {
+						for(int i = 0; i<frame.clients.size(); i++) {
+							ServerThread st = frame.clients.get(i);
+							if(str.equals(st.mId)) {
+								to[index] = i;
+								index++;
+							}
+						}
+					}
 					
-				case ChattData.USERS:
-				
+					frame.sendAll(cd, to);
 					break;
 					
 				case ChattData.MESSAGE:
@@ -89,26 +104,44 @@ public class ServerThread extends Thread{
 						sendAll(cd);
 						
 					break;
+
+				case ChattData.LOGOUT:
+					throw new Exception();
+//					로그아웃 커맨드 발생했을때 exception 발생 -> catch문장으로
+					
 				} // end of switch
 				
 				frame.getTextPane().scrollRectToVisible(
 						new Rectangle(0, frame.getTextPane().getHeight()+100, 1, 1) );
 			}
 		}catch(Exception ex) {
-			ex.printStackTrace();
+			int index = frame.clients.indexOf(ServerThread.this);
+//			클라이언트 콜렉션에 저장되어있는 서버스레드 중에서 자기자신의 위치번호를 가진
+			frame.model.remove(index);
+			frame.clients.remove(index); // 자기자신 지우는 작업 (스레드는 아직 죽지 x)
+			
+//			다른 모든 유저에서 본인의 logout된 사실을 통보
+			ChattData cd = new ChattData();
+			cd.setCommand(ChattData.LOGOUT);
+			cd.setmId(this.mId);
+			
+			try {
+				sendAll(cd);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
-		
 	}
 
 
-
 	private void sendAll(ChattData cd) throws Exception{
+		
 		for(ServerThread st : frame.clients) {
 //			frame.clients : ServerThread를 add한 것.
 			st.oos.writeObject(cd);
 			st.oos.flush();
 //			이 메소드 때문에 다른 클라이언트들도 메시지를 받은 것
-			
 		}
 	}
 	

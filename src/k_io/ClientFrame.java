@@ -6,8 +6,11 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
@@ -41,8 +44,8 @@ public class ClientFrame extends JFrame implements Runnable{
 	private JTextField serverIP;
 	private JLabel label_1;
 	private JTextField port;
-	private JButton button;
-	private JButton button_1;
+	private JButton startBtn;
+	private JButton closeBtn;
 	private JScrollPane scrollPane_1;
 	private JButton button_2;
 	private JComboBox comboBox;
@@ -83,8 +86,8 @@ public class ClientFrame extends JFrame implements Runnable{
 		contentPane.add(getServerIP());
 		contentPane.add(getLabel_1());
 		contentPane.add(getPort());
-		contentPane.add(getButton());
-		contentPane.add(getButton_1());
+		contentPane.add(getStartBtn());
+		contentPane.add(getCloseBtn());
 		contentPane.add(getScrollPane_1());
 		contentPane.add(getButton_2());
 		contentPane.add(getComboBox());
@@ -100,6 +103,8 @@ public class ClientFrame extends JFrame implements Runnable{
 	@Override
 	public void run() {
 		try {
+			startBtn.setEnabled(false);
+			closeBtn.setEnabled(true);
 			String ip = serverIP.getText();
 			int p = Integer.parseInt(port.getText());
 			socket = new Socket(ip, p);
@@ -121,13 +126,42 @@ public class ClientFrame extends JFrame implements Runnable{
 	public void login() throws Exception{
 		String mid = tmId.getText();
 		String pwd = tPwd.getText(); // 현재는 일단 불필요
-		String msg = "방가 방가";
+		String msg = "손님\n";
 		int cmd = ChattData.LOGIN;
 		
 		ChattData cd = new ChattData(mid, cmd, msg);
 		ct.oos.writeObject(cd); // ClientThread에 있는 스트림을 가져와서 씀
 		ct.oos.flush();
 		// flush만 (한번 생성된 소켓 계속 떠야돼서 close는 X)
+	}
+	
+	public void logout() {
+		
+		startBtn.setEnabled(true);
+		closeBtn.setEnabled(false);
+		
+		// 1) 서버에게 logout통보
+		ChattData cd = new ChattData();
+		cd.setmId(tmId.getText());
+		cd.setCommand(ChattData.LOGOUT);
+		try {
+			ct.oos.writeObject(cd);
+			ct.oos.flush();
+
+			// 2) 자신의 유저목록을 모두 제거
+			model.clear();
+			
+			// 3) ClientThread를 종료
+			ct.stop(); // 클라이언트 스레드를 강제로 종료
+			socket.close();
+			socket = null; // 소켓 제거
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			System.out.println("로그아웃");
+		}
+		
+		
 	}
 	
 	public void send(){
@@ -139,6 +173,16 @@ public class ClientFrame extends JFrame implements Runnable{
 			
 			ChattData cd = new ChattData(mid, cmd, msg);
 			
+			if(comboBox.getSelectedIndex() == 1) { // 귓속말
+				Object[] obj = getList().getSelectedValues();
+				List<String> users = new ArrayList<String>();
+				for(Object str : obj) {
+					users.add((String)str);
+				}
+				cd.setUsers(users);
+				cd.setCommand(ChattData.WHISPER);
+			}
+				
 			if(socket.isConnected()) {
 				ct.oos.writeObject(cd);
 				ct.oos.flush();
@@ -197,10 +241,10 @@ public class ClientFrame extends JFrame implements Runnable{
 		}
 		return port;
 	}
-	public JButton getButton() {
-		if (button == null) {
-			button = new JButton("접속");
-			button.addActionListener(new ActionListener() {
+	public JButton getStartBtn() {
+		if (startBtn == null) {
+			startBtn = new JButton("접속");
+			startBtn.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 				
 				Thread t = new Thread(ClientFrame.this);
@@ -208,18 +252,25 @@ public class ClientFrame extends JFrame implements Runnable{
 				
 				}
 			});
-			button.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
-			button.setBounds(375, 10, 78, 46);
+			startBtn.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
+			startBtn.setBounds(375, 10, 78, 46);
 		}
-		return button;
+		return startBtn;
 	}
-	public JButton getButton_1() {
-		if (button_1 == null) {
-			button_1 = new JButton("\uC885\uB8CC");
-			button_1.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
-			button_1.setBounds(464, 10, 78, 46);
+	public JButton getCloseBtn() {
+		if (closeBtn == null) {
+			closeBtn = new JButton("종료");
+			closeBtn.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent arg0) {
+					logout();
+				}
+
+			
+			});
+			closeBtn.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
+			closeBtn.setBounds(464, 10, 78, 46);
 		}
-		return button_1;
+		return closeBtn;
 	}
 	public JScrollPane getScrollPane_1() {
 		if (scrollPane_1 == null) {
@@ -257,8 +308,6 @@ public class ClientFrame extends JFrame implements Runnable{
 				public void keyReleased(KeyEvent e) {
 				if(e.getKeyCode() == KeyEvent.VK_ENTER)
 				send();
-				
-				
 					
 				}
 			});

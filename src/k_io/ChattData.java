@@ -31,6 +31,7 @@ public class ChattData implements Serializable{
 	
 	@Override
 	public String toString() {
+		
 		return mId + " > " + message;
 	}
 	

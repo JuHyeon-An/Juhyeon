@@ -27,6 +27,11 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.HTMLEditorKit;
 import java.awt.Color;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.io.IOException;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class ServerFrame extends JFrame implements Runnable{
 
@@ -45,8 +50,8 @@ public class ServerFrame extends JFrame implements Runnable{
 	private JTextField textField;
 	private JLabel lblNewLabel_1;
 	private JTextField port;
-	private JButton btnNewButton;
-	private JButton btnNewButton_1;
+	private JButton startBtn;
+	private JButton closeBtn;
 	private JScrollPane scrollPane;
 	private JLabel lblNewLabel_2;
 	private JScrollPane scrollPane_1;
@@ -54,7 +59,7 @@ public class ServerFrame extends JFrame implements Runnable{
 	private JButton btnNewButton_2;
 	private JButton button;
 	private JComboBox comboBox;
-	private JTextField textField_2;
+	private JTextField message;
 	private JButton btnNewButton_3;
 	private JLabel lblNewLabel_3;
 	private JList list;
@@ -76,6 +81,13 @@ public class ServerFrame extends JFrame implements Runnable{
 	}
 	
 	public ServerFrame() {
+		addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent arg0) {
+				serverStop();
+				
+			}
+		});
 		setTitle("\uCC44\uD305 \uC11C\uBC84");
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 665, 520);
@@ -87,14 +99,14 @@ public class ServerFrame extends JFrame implements Runnable{
 		contentPane.add(getTextField());
 		contentPane.add(getLblNewLabel_1());
 		contentPane.add(getPort());
-		contentPane.add(getBtnNewButton());
-		contentPane.add(getBtnNewButton_1());
+		contentPane.add(getStartBtn());
+		contentPane.add(getCloseBtn());
 		contentPane.add(getScrollPane());
 		contentPane.add(getScrollPane_1());
 		contentPane.add(getBtnNewButton_2());
 		contentPane.add(getButton());
 		contentPane.add(getComboBox());
-		contentPane.add(getTextField_2());
+		contentPane.add(getMessage());
 		contentPane.add(getBtnNewButton_3());
 	}
 	
@@ -102,13 +114,15 @@ public class ServerFrame extends JFrame implements Runnable{
 	public void run() {
 		
 		try{
+			startBtn.setEnabled(false);
+			closeBtn.setEnabled(true);
 			int p = Integer.parseInt(port.getText());
 			server = new ServerSocket(p);
 			String html = "<font size='5' color='#4C301D'>서버가 시작됨</font>";
 			kit.insertHTML(doc, doc.getLength(), html, 0, 0, null);
 			
 			while(true) {
-				html = "[클라이언트 접속 대기중]";
+				html = "<font size='3' color='#4C301D'>[클라이언트 접속 대기중]</font>";
 				kit.insertHTML(doc, doc.getLength(), html, 0, 0, null);
 
 				Socket clientSocket = server.accept();
@@ -130,12 +144,87 @@ public class ServerFrame extends JFrame implements Runnable{
 			}
 			
 		}catch(Exception ex) {
-			ex.printStackTrace();
+			System.out.println("소켓 연결 끊어짐");
 		}
 		
 	}
 
+	public void send() {
+		try {
+//		전송될 데이터 만들기
+		ChattData cd = new ChattData();
+		cd.setmId("운영자");
+		cd.setCommand(ChattData.MESSAGE);
+		cd.setMessage(message.getText());
+		
+		String html = "<div style='border:3px solid #6f594a;padding:3px;"
+				+ "background-color:#e0daf0;width:150px'>"
+				+ cd.toString()
+				+ "</div>";
+		
+		kit.insertHTML(doc, doc.getLength(), html, 0, 0, null);
+		
+		if (comboBox.getSelectedIndex() == 0) {
+//		전체메시지 보내기
+			sendAll(cd);
+		} else {
+			int[] indexs = getList_1().getSelectedIndices();
+			sendAll(cd, indexs);
+		}
+		}catch(Exception ex) {
+			
+		}
+	}
 	
+	public void sendAll(ChattData cd) { // 전체 메시지
+		for(ServerThread st : clients) {
+			try {
+				st.oos.writeObject(cd);
+				st.oos.flush();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	public void sendAll(ChattData cd, int[] to) { // 귓속말
+		for (int i = 0; i < to.length; i++) {
+			ServerThread st = clients.get(to[i]);
+			try {
+				st.oos.writeObject(cd);
+				st.oos.flush();
+			} catch (IOException e) {
+				System.out.println("ServerFrame - sendAll()");
+			}
+			
+		}
+	}
+	
+	/*
+	 * 1. 모든 유저들에게 서버 종료 통보 (GETOUT)
+	 * 2. Client의 ServerThread를 종료
+	 * 3. 접속자 목록을 모두 제거
+	 * 4. serverSocket 종료
+	 */
+	
+	public void serverStop() {
+		ChattData cd = new ChattData();
+		cd.setCommand(ChattData.GETOUT);
+		cd.setmId("SERVER");
+		sendAll(cd);
+		
+		clients.clear();
+		clients = new ArrayList<ServerThread>();
+		
+		model.clear(); // 목록제거
+		try {
+			server.close(); // 서버소켓 종료
+			server = null;
+		} catch (IOException e) {
+		}
+		
+	}
 	
 	public JLabel getLblNewLabel() {
 		if (lblNewLabel == null) {
@@ -181,10 +270,10 @@ public class ServerFrame extends JFrame implements Runnable{
 		}
 		return port;
 	}
-	public JButton getBtnNewButton() {
-		if (btnNewButton == null) {
-			btnNewButton = new JButton("접속");
-			btnNewButton.addActionListener(new ActionListener() {
+	public JButton getStartBtn() {
+		if (startBtn == null) {
+			startBtn = new JButton("접속");
+			startBtn.addActionListener(new ActionListener() {
 				public void actionPerformed(ActionEvent e) {
 					
 					Thread t = new Thread(ServerFrame.this);
@@ -193,18 +282,27 @@ public class ServerFrame extends JFrame implements Runnable{
 					
 				}
 			});
-			btnNewButton.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
-			btnNewButton.setBounds(472, 10, 78, 34);
+			startBtn.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
+			startBtn.setBounds(472, 10, 78, 34);
 		}
-		return btnNewButton;
+		return startBtn;
 	}
-	public JButton getBtnNewButton_1() {
-		if (btnNewButton_1 == null) {
-			btnNewButton_1 = new JButton("\uC885\uB8CC");
-			btnNewButton_1.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
-			btnNewButton_1.setBounds(553, 10, 78, 34);
+	public JButton getCloseBtn() {
+		if (closeBtn == null) {
+			closeBtn = new JButton("종료");
+			closeBtn.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+				
+				closeBtn.setEnabled(false);
+				serverStop();
+				startBtn.setEnabled(true);
+				
+				}
+			});
+			closeBtn.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
+			closeBtn.setBounds(553, 10, 78, 34);
 		}
-		return btnNewButton_1;
+		return closeBtn;
 	}
 	public JScrollPane getScrollPane() {
 		if (scrollPane == null) {
@@ -247,7 +345,22 @@ public class ServerFrame extends JFrame implements Runnable{
 	}
 	public JButton getBtnNewButton_2() {
 		if (btnNewButton_2 == null) {
-			btnNewButton_2 = new JButton("\uAC15\uD1F4");
+			btnNewButton_2 = new JButton("강퇴");
+			btnNewButton_2.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+				
+				Object[] indexs = getList_1().getSelectedValues();
+				ChattData cd = new ChattData();
+				cd.setCommand(ChattData.GETOUT);
+				cd.setmId("SERVER");
+				List<String> users = new ArrayList<String>();
+				for(int i = 0; i<indexs.length; i++) {
+					users.add((String)indexs[i]);
+				}
+				cd.setUsers(users);
+				sendAll(cd);
+				}
+			});
 			btnNewButton_2.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
 			btnNewButton_2.setBounds(12, 395, 84, 29);
 		}
@@ -256,6 +369,13 @@ public class ServerFrame extends JFrame implements Runnable{
 	public JButton getButton() {
 		if (button == null) {
 			button = new JButton("\uC120\uD0DD\uD574\uC81C");
+			button.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					
+					getList_1().clearSelection();
+					
+				}
+			});
 			button.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
 			button.setBounds(102, 395, 97, 29);
 		}
@@ -273,18 +393,40 @@ public class ServerFrame extends JFrame implements Runnable{
 		}
 		return comboBox;
 	}
-	public JTextField getTextField_2() {
-		if (textField_2 == null) {
-			textField_2 = new JTextField();
-			textField_2.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
-			textField_2.setBounds(209, 435, 332, 21);
-			textField_2.setColumns(10);
+	public JTextField getMessage() {
+		if (message == null) {
+			message = new JTextField();
+			message.addKeyListener(new KeyAdapter() {
+				@Override
+				public void keyReleased(KeyEvent e) {
+					
+					if(e.getKeyCode() ==  KeyEvent.VK_ENTER) {
+						send();
+						message.setText("");
+						}
+				}
+			});
+			message.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
+			message.setBounds(209, 435, 332, 21);
+			message.setColumns(10);
 		}
-		return textField_2;
+		return message;
 	}
 	public JButton getBtnNewButton_3() {
 		if (btnNewButton_3 == null) {
-			btnNewButton_3 = new JButton("\uC804\uC1A1");
+			btnNewButton_3 = new JButton("전송");
+			btnNewButton_3.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					send();
+					message.setText("");
+				}
+			});
+			btnNewButton_3.addKeyListener(new KeyAdapter() {
+				@Override
+				public void keyReleased(KeyEvent e) {
+				
+				}
+			});
 			btnNewButton_3.setFont(new Font("나눔스퀘어라운드 Regular", Font.PLAIN, 13));
 			btnNewButton_3.setBounds(545, 434, 86, 23);
 		}
